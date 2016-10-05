@@ -86,7 +86,7 @@ str(stepsPerDay)
 hist(stepsPerDay$Steps, breaks = 8, xlab = "# of Steps", main = "Steps per day", col="lightgreen")
 ```
 
-![](PA1_template_files/figure-markdown_github/unnamed-chunk-8-1.png)
+![](Figure/Image1.png)
 
 #### Mean and median number of steps taken each day
 
