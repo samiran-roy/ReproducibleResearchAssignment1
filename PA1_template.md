@@ -1,0 +1,238 @@
+This is my submission for the reproducible research Peer graded assignment 1
+
+### Getting necessary libraries
+
+``` r
+library(RCurl)
+library(plyr)
+library(ggplot2)
+library(zoo)
+```
+
+### Loading and preprocessing the data
+
+#### Getting and loading data
+
+##### Source data URL
+
+``` r
+fileURL <- "http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+```
+
+##### Check if source data already exists; Else Download
+
+``` r
+if(!file.exists("./data")){ dir.create("./data") }
+if(!file.exists("./data/repdata_data_activity.zip"))
+  { 
+    download.file(fileURL, "./data/repdata_data_activity.zip", mode="wb")
+  }
+unzip("./data/repdata_data_activity.zip")
+```
+
+##### Load data into dataset
+
+``` r
+activityData <- read.csv("./data/repdata_data_activity/activity.csv")
+str(activityData)
+```
+
+    ## 'data.frame':    17568 obs. of  3 variables:
+    ##  $ steps   : int  NA NA NA NA NA NA NA NA NA NA ...
+    ##  $ date    : Factor w/ 61 levels "2012-10-01","2012-10-02",..: 1 1 1 1 1 1 1 1 1 1 ...
+    ##  $ interval: int  0 5 10 15 20 25 30 35 40 45 ...
+
+#### Preprocessing data to meet analysis requirements
+
+##### Account for missing values
+
+``` r
+sum(is.na(activityData$steps))
+```
+
+    ## [1] 2304
+
+##### Create clean dataset without NA values
+
+``` r
+activityNew <- activityData[!is.na(activityData$steps),]
+str(activityNew)
+```
+
+    ## 'data.frame':    15264 obs. of  3 variables:
+    ##  $ steps   : int  0 0 0 0 0 0 0 0 0 0 ...
+    ##  $ date    : Factor w/ 61 levels "2012-10-01","2012-10-02",..: 2 2 2 2 2 2 2 2 2 2 ...
+    ##  $ interval: int  0 5 10 15 20 25 30 35 40 45 ...
+
+### What is mean total number of steps taken per day?
+
+#### Calculating the total number of steps taken each day
+
+##### Source data contains the steps taken at 5 min intervals. To find steps per day we need to aggregate data per day
+
+``` r
+stepsPerDay <- aggregate(activityNew$steps ~ activityNew$date, FUN=sum, )
+colnames(stepsPerDay) <- c("Date","Steps")
+str(stepsPerDay)
+```
+
+    ## 'data.frame':    53 obs. of  2 variables:
+    ##  $ Date : Factor w/ 61 levels "2012-10-01","2012-10-02",..: 2 3 4 5 6 7 9 10 11 12 ...
+    ##  $ Steps: int  126 11352 12116 13294 15420 11015 12811 9900 10304 17382 ...
+
+##### Create histogram for steps taken per day
+
+``` r
+hist(stepsPerDay$Steps, breaks = 8, xlab = "# of Steps", main = "Steps per day", col="lightgreen")
+```
+
+![](PA1_template_files/figure-markdown_github/unnamed-chunk-8-1.png)
+
+#### Mean and median number of steps taken each day
+
+``` r
+mean(stepsPerDay$Steps)
+```
+
+    ## [1] 10766.19
+
+``` r
+median(stepsPerDay$Steps)
+```
+
+    ## [1] 10765
+
+### What is the average daily activity pattern?
+
+#### Average the data from multiple days into 5 min intervals
+
+``` r
+avgDailyAct <- tapply(activityNew$steps, activityNew$interval, mean)
+str(avgDailyAct)
+```
+
+    ##  num [1:288(1d)] 1.717 0.3396 0.1321 0.1509 0.0755 ...
+    ##  - attr(*, "dimnames")=List of 1
+    ##   ..$ : chr [1:288] "0" "5" "10" "15" ...
+
+#### Plotting the avg number of steps against 5 min intervals throughout the day
+
+``` r
+plot(y = avgDailyAct, x = names(avgDailyAct), type = "l", xlab = "5 Minute Interval", 
+    main = "Daily Activity Pattern", ylab = "Average number of steps", col="blue")
+```
+
+![](PA1_template_files/figure-markdown_github/unnamed-chunk-11-1.png)
+
+#### Finding Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps
+
+``` r
+maxInterval <- avgDailyAct[avgDailyAct==max(avgDailyAct)]
+```
+
+#### Interval 835 had the maximum number of average steps taken - 206
+
+### Imputing missing values
+
+#### Finding total number of missing values
+
+``` r
+sum(is.na(activityData$steps))
+```
+
+    ## [1] 2304
+
+#### Filling missing Values - Interpolating missing NAs by using na.approx
+
+``` r
+activityApprox <- activityData
+activityApprox[which(is.na(activityApprox$steps)),1] <- 
+                avgDailyAct[as.character(activityApprox[which(is.na(activityApprox$steps)),3])]
+sum(is.na(activityApprox))
+```
+
+    ## [1] 0
+
+#### The missing values have been filled with the approx values from the daily average values
+
+#### Comparing pre and post approximated values via histogram for steps per day
+
+``` r
+approxStepsPerDay <- aggregate(activityApprox$steps ~ activityApprox$date, FUN=sum, )
+colnames(approxStepsPerDay) <- c("Date","Steps")
+par(mfrow=c(1,2))
+hist(stepsPerDay$Steps, breaks = 8, xlab = "# of Steps", main = "Steps per day", col="lightgreen"
+    , ylim=c(0,25))
+abline(v = median(stepsPerDay$Steps), col = 4, lwd = 4)
+hist(approxStepsPerDay$Steps, breaks = 8, xlab = "# of Steps", main = "Steps per day (missing values removed)", col="lightgreen"
+     , ylim=c(0,25))
+abline(v = median(approxStepsPerDay$Steps), col = 4, lwd = 4)
+```
+
+![](PA1_template_files/figure-markdown_github/unnamed-chunk-15-1.png)
+
+#### Calculating mean and median of dataset with missing values replaced
+
+``` r
+mean(approxStepsPerDay$Steps)
+```
+
+    ## [1] 10766.19
+
+``` r
+median(approxStepsPerDay$Steps)
+```
+
+    ## [1] 10766.19
+
+#### Finding impact of replacing missing values
+
+``` r
+mean(approxStepsPerDay$Steps) - mean(stepsPerDay$Steps)
+```
+
+    ## [1] 0
+
+``` r
+median(approxStepsPerDay$Steps) - median(stepsPerDay$Steps)
+```
+
+    ## [1] 1.188679
+
+#### There is no difference in the mean however the median shifted by 1.188679
+
+### Comparing activity patterns between weekday and weekends
+
+#### Using weekdays function to factor the dataset into weekdays and weekends
+
+``` r
+activityApprox$date <- as.Date(activityApprox$date) 
+activityApprox$wkday <- weekdays(activityApprox$date)
+activityApprox$fwkday <- as.factor(c("weekend","weekday"))
+activityApprox[activityApprox$wkday == "Sunday" | activityApprox$wkday == "Saturday",5] <- factor("weekend")
+activityApprox[!(activityApprox$wkday == "Sunday" | activityApprox$wkday == "Saturday"),5] <- factor("weekday")
+```
+
+#### Creating separate datasets for weekdays and weekends
+
+``` r
+activityWeekdays <- subset(activityApprox, fwkday == "weekday")
+activityWeekends <- subset(activityApprox, fwkday == "weekend")
+avgDailyAct_weekday <- tapply(activityWeekdays$steps, activityWeekdays$interval, mean)
+avgDailyAct_weekend <- tapply(activityWeekends$steps, activityWeekends$interval, mean)
+par(mfrow=c(1,2))
+plot(y = avgDailyAct_weekday, x = names(avgDailyAct_weekday), type = "l"
+    , xlab = "5 Minute Interval", main = "Daily Activity Pattern (Weekday)"
+    , ylab = "Average number of steps", col="blue")
+plot(y = avgDailyAct_weekend, x = names(avgDailyAct_weekend), type = "l"
+    , xlab = "5 Minute Interval", main = "Daily Activity Pattern (Weekend)"
+    , ylab = "Average number of steps", col="blue")
+```
+
+![](PA1_template_files/figure-markdown_github/unnamed-chunk-19-1.png)
+
+#### The activity trends are significantly different during weekdays and weekends.
+
+#### During weekdays the average number of steps taken are very high towards the beginning of the day with considerably lower numbers for the rest of the day.
+
+#### During weekends the average number of steps taken peak during the mornings however they stay high during the entire day with multiple mini peaks.
